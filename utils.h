@@ -48,6 +48,8 @@
 #include <vector>
 #include <map>
 #include <unistd.h>
+#include <ctime>
+#include <iomanip>
 
 using namespace std;
 
@@ -177,3 +179,18 @@ queue<string> exec_command(const string& command)
     return output;
 }
 
+/**
+   Convert timespec to GNU touch parameter format
+   https://www.gnu.org/software/coreutils/manual/html_node/General-date-syntax.html
+   Toybox's touch used on Android supports the GNU extension for the nanoseconds : "@%s.%N"
+
+   @param timespec the time to be converted
+ */
+static string format_gnu_touch_time(const struct timespec& t) {
+    ostringstream ss;
+    ss << "@"
+       << t.tv_sec
+       << "."
+       << setw(9) << setfill('0') << t.tv_nsec;
+    return ss.str();
+}

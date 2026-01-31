@@ -782,12 +782,45 @@ static int adb_utimens(const char *path, const struct timespec ts[2]) {
 
     shell_escape_path(path_string);
 
-    queue<string> output;
-    string command = "touch '";
-    command.append(path_string);
-    command.append("'");
-    cout << command<<"\n";
-    adb_shell(command);
+    bool set_atime = true;
+    bool set_mtime = true;
+    struct timespec atime = ts[0];
+    struct timespec mtime = ts[1];
+
+    // Handle UTIME_NOW / UTIME_OMIT
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    if (ts[0].tv_nsec == UTIME_NOW) {
+        atime = now;
+    } else if (ts[0].tv_nsec == UTIME_OMIT) {
+        set_atime = false;
+    }
+    if (ts[1].tv_nsec == UTIME_NOW) {
+        mtime = now;
+    } else if (ts[1].tv_nsec == UTIME_OMIT) {
+        set_mtime = false;
+    }
+
+    if (!set_atime && !set_mtime)
+        return 0;
+    if (set_atime) {
+        string command = "touch -a -d ";
+        command.append(format_gnu_touch_time(atime));
+        command.append(" '");
+        command.append(path_string);
+        command.append("'");
+        cout << command<<"\n";
+        adb_shell(command);
+    }
+    if (set_mtime) {
+        string command = "touch -m -d ";
+        command.append(format_gnu_touch_time(atime));
+        command.append(" '");
+        command.append(path_string);
+        command.append("'");
+        cout << command<<"\n";
+        adb_shell(command);
+    }
 
     // If we forgot to mount -o rescan then we can remount and touch to trigger the scan.
     if (adbfs_conf.rescan) adb_rescan_file(path_string);
