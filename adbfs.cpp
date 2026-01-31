@@ -107,6 +107,10 @@ queue<string> adb_shell(const string&, bool);
 queue<string> shell(const string&);
 
 static const char PERMISSION_ERR_MSG[] = ": Permission denied";
+static const char TOUCH_TOYBOX_GNU_DATE_ERR_MSG[] = "touch: bad '@";
+static const char TOUCH_BUSYBOX_GNU_DATE_ERR_MSG[] = "touch: invalid date '@";
+
+
 
 string tempDirPath;
 map<string,fileCache> fileData;
@@ -119,6 +123,7 @@ void invalidateCache(const string& path) {
 
 map<int,bool> filePendingWrite;
 map<string,bool> fileTruncated;
+bool touch_gnu_mode = true;
 
 /**
    Custom options
@@ -806,7 +811,7 @@ static int adb_utimens(const char *path, const struct timespec ts[2]) {
     string command = "";
     if (set_atime) {
         command.append("touch -a -d ");
-        command.append(format_gnu_touch_time(atime));
+        command.append(format_touch_time(atime, touch_gnu_mode));
         command.append(" '");
         command.append(path_string);
         command.append("'");
@@ -815,13 +820,34 @@ static int adb_utimens(const char *path, const struct timespec ts[2]) {
     }
     if (set_mtime) {
         command.append("touch -m -d ");
-        command.append(format_gnu_touch_time(atime));
+        command.append(format_touch_time(atime, touch_gnu_mode));
         command.append(" '");
         command.append(path_string);
         command.append("'");
     }
     cout << command<<"\n";
-    adb_shell(command);
+    queue<string> output;
+    output = adb_shell(command, true);
+    if (!output.empty()) {
+        string front = output.front();
+        while (!output.empty()) {
+            cout << output.front() << "\n";
+            output.pop();
+        }
+        bool date_failed = front.length() > sizeof(TOUCH_TOYBOX_GNU_DATE_ERR_MSG)
+                && front.compare(0, sizeof(TOUCH_TOYBOX_GNU_DATE_ERR_MSG) - 1, TOUCH_TOYBOX_GNU_DATE_ERR_MSG);
+        date_failed = date_failed || (front.length() > sizeof(TOUCH_BUSYBOX_GNU_DATE_ERR_MSG)
+                && front.compare(0, sizeof(TOUCH_BUSYBOX_GNU_DATE_ERR_MSG) - 1, TOUCH_BUSYBOX_GNU_DATE_ERR_MSG));
+
+        if (date_failed) {
+            if (!touch_gnu_mode)
+                return -ENOSYS;
+
+            cout << "Touch doesn't seems to support GNU dates with nanoseconds support. Switching to legacy mode.\n";
+            touch_gnu_mode = false;
+            return adb_utimens(path, ts);
+        }
+    }
 
     // If we forgot to mount -o rescan then we can remount and touch to trigger the scan.
     if (adbfs_conf.rescan) adb_rescan_file(path_string);
@@ -838,8 +864,9 @@ static int adb_truncate(const char *path, off_t size) {
     string_replacer(path_string,"/","-");
     local_path_string.append(path_string);
     path_string.assign(path);
+    string local_path_string_escaped = local_path_string;
     shell_escape_path(path_string);
-    shell_escape_path(local_path_string);
+    shell_escape_path(local_path_string_escaped);
 
 
     queue<string> output;
@@ -851,7 +878,7 @@ static int adb_truncate(const char *path, off_t size) {
     output = adb_shell(command);
     vector<string> output_chunk = make_array(output.front());
     if (output_chunk[0][0] == '/'){
-        adb_pull(path_string,local_path_string);
+        adb_pull(path_string,local_path_string_escaped);
     }
 
     fileTruncated[path_string] = true;
