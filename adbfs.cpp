@@ -803,24 +803,25 @@ static int adb_utimens(const char *path, const struct timespec ts[2]) {
 
     if (!set_atime && !set_mtime)
         return 0;
+    string command = "";
     if (set_atime) {
-        string command = "touch -a -d ";
+        command.append("touch -a -d ");
         command.append(format_gnu_touch_time(atime));
         command.append(" '");
         command.append(path_string);
         command.append("'");
-        cout << command<<"\n";
-        adb_shell(command);
+        if (set_mtime)
+            command.append(" && ");
     }
     if (set_mtime) {
-        string command = "touch -m -d ";
+        command.append("touch -m -d ");
         command.append(format_gnu_touch_time(atime));
         command.append(" '");
         command.append(path_string);
         command.append("'");
-        cout << command<<"\n";
-        adb_shell(command);
     }
+    cout << command<<"\n";
+    adb_shell(command);
 
     // If we forgot to mount -o rescan then we can remount and touch to trigger the scan.
     if (adbfs_conf.rescan) adb_rescan_file(path_string);
