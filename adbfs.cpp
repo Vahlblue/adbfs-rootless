@@ -820,7 +820,7 @@ static int adb_utimens(const char *path, const struct timespec ts[2]) {
     }
     if (set_mtime) {
         command.append("touch -m -d ");
-        command.append(format_touch_time(atime, touch_gnu_mode));
+        command.append(format_touch_time(mtime, touch_gnu_mode));
         command.append(" '");
         command.append(path_string);
         command.append("'");
