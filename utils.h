@@ -185,25 +185,25 @@ queue<string> exec_command(const string& command)
    gnu_format allows to specify up to nanoseconds.
    https://www.gnu.org/software/coreutils/manual/html_node/General-date-syntax.html
    Toybox's touch used on Android supports the GNU extension for the nanoseconds since 0.8.1 : "@%s.%N"
-   Toybox was begin used instead of Busybox in Android 6
+   Toybox was begin used instead of Busybox in Android 6.
 
    @param t the time to be converted
    @param gnu_format if touch supports GNU time format
  */
 static string format_touch_time(const struct timespec& t, bool gnu_format) {
+    ostringstream ss;
     if (gnu_format) {
-        ostringstream ss;
         ss << "@"
             << t.tv_sec
             << "."
             << setw(9) << setfill('0') << t.tv_nsec;
-            return ss.str();
+        return ss.str();
     } else {
-        char timebuf[32];
-        struct tm _tm;
-        localtime_r(&(t.tv_sec), &_tm);
-        strftime(timebuf, sizeof(timebuf), "%Y-%m-%dT%H:%M:%S", &_tm);
-        string out = timebuf;
-        return out;
+        // It could be possible to convert here the timezone instead of creating a more complex shell comamand.
+        ss << "`date -ud "
+            << "@" << t.tv_sec  << "."
+            << setw(9) << setfill('0') << t.tv_nsec
+            << " +%Y-%m-%dT%H:%M:%S`";
     }
+    return ss.str();
 }
