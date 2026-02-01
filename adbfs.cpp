@@ -835,7 +835,7 @@ static int adb_utimens(const char *path, const struct timespec ts[2]) {
             output.pop();
         }
         bool date_failed = front.length() > sizeof(TOUCH_TOYBOX_GNU_DATE_ERR_MSG)
-                && front.compare(0, sizeof(TOUCH_TOYBOX_GNU_DATE_ERR_MSG) - 1, TOUCH_TOYBOX_GNU_DATE_ERR_MSG);
+                && !front.compare(0, sizeof(TOUCH_TOYBOX_GNU_DATE_ERR_MSG) - 1, TOUCH_TOYBOX_GNU_DATE_ERR_MSG);
         date_failed = date_failed || (front.length() > sizeof(TOUCH_BUSYBOX_GNU_DATE_ERR_MSG)
                 && front.compare(0, sizeof(TOUCH_BUSYBOX_GNU_DATE_ERR_MSG) - 1, TOUCH_BUSYBOX_GNU_DATE_ERR_MSG));
 
